@@ -1,149 +1,100 @@
-from rest_framework.decorators import api_view
+from django.db import transaction
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token 
-from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from .serializers import UserAuthSerializer, UserCreateSerializer
-from django.core.mail import send_mail
+from .serializers import RegisterValidateSerializer, AuthValidateSerializer, ConfirmSerializer
+from users.models import ConfirmCode, CustomUser
 import random
-from .models import EmailConfirmCode
+import string
 from rest_framework.views import APIView
+from rest_framework.generics import CreateAPIView
 
+class AuthorizationAPIView(CreateAPIView):
+    serializer_class = AuthValidateSerializer
 
-class RegistrationAPIView(APIView):
     def post(self, request):
-        serializer = UserCreateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(status=status.HTTP_400_BAD_REQUEST,
-                            data=serializer.errors)
-        
-        username = request.data.get('username')
-        password = request.data.get('password')
-        email = request.data.get('email')
-
-        user = User.objects.create_user(username=username,
-                                        password=password,
-                                        email=email,
-                                        is_active=False)
-        
-        code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-        EmailConfirmCode.objects.create(user=user, code=code)
-
-        send_mail(
-            subject='Ваш код потверждения',
-            message=f'Ваш код подтверждения: {code}',
-            from_email='твоя почта@mail.kg',
-            recipient_list=[email],
-            fail_silently=False,
-        )
-        print(code)
-        return Response(
-            data={'message': 'Код подтверждения отправлен на email.'},
-            status=status.HTTP_201_CREATED)
-        
-
-# @api_view(['POST'])
-# def registration_api_view(request):
-#     serializer = UserCreateSerializer(data=request.data)
-#     if not serializer.is_valid():
-#         return Response(status=status.HTTP_400_BAD_REQUEST,
-#                         data=serializer.errors)
-    
-#     username = request.data.get('username')
-#     password = request.data.get('password')
-#     email = request.data.get('email')
-
-#     user = User.objects.create_user(username=username,
-#                                     password=password,
-#                                     email=email,
-#                                     is_active=False)
-    
-#     code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-#     EmailConfirmCode.objects.create(user=user, code=code)
-
-#     send_mail(
-#         subject='Ваш код потверждения',
-#         message=f'Ваш код подтверждения: {code}',
-#         from_email='твоя почта@mail.kg',
-#         recipient_list=[email],
-#         fail_silently=False,
-#     )
-#     print(code)
-#     return Response(
-#         data={'message': 'Код подтверждения отправлен на email.'},
-#         status=status.HTTP_201_CREATED)
-    
-
-class ConfirmEmailAPIView(APIView):
-    def post(self, request):
-        email = request.data.get('email')
-        code = request.data.get('code')
-
-        try:
-            user = User.objects.get(email=email)
-            confirm_code = EmailConfirmCode.objects.get(user=user)
-
-            if confirm_code.code == code:
-                user.is_active = True
-                user.save()
-                confirm_code.delete()
-                return Response({'message': 'Email успешно подвержден!'}, 
-                                status=status.HTTP_200_OK)
-            else:
-                return Response({'error': 'Неверный код'}, 
-                                status=status.HTTP_400_BAD_REQUEST)
-        except (User.DoesNotExist, EmailConfirmCode.DoesNotExist):
-            return Response({'error': 'Пользователь или код не найден'}, 
-                            status=status.HTTP_404_NOT_FOUND)
-        
-
-# @api_view(['POST'])
-# def confirm_email(request):
-#     email = request.data.get('email')
-#     code = request.data.get('code')
-
-#     try:
-#         user = User.objects.get(email=email)
-#         confirm_code = EmailConfirmCode.objects.get(user=user)
-
-#         if confirm_code.code == code:
-#             user.is_active = True
-#             user.save()
-#             confirm_code.delete()
-#             return Response({'message': 'Email успешно подвержден!'}, 
-#                             status=status.HTTP_200_OK)
-#         else:
-#             return Response({'error': 'Неверный код'}, 
-#                             status=status.HTTP_400_BAD_REQUEST)
-#     except (User.DoesNotExist, EmailConfirmCode.DoesNotExist):
-#         return Response({'error': 'Пользователь или код не найден'}, 
-#                         status=status.HTTP_404_NOT_FOUND)
-
-
-class AuthorizationAPIView(APIView):
-    def post(self, request):
-        serializer = UserAuthSerializer(data=request.data)
+        serializer = AuthValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         user = authenticate(**serializer.validated_data)
 
-        if user is not None:
+        if user:
+            if not user.is_active:
+                return Response(
+                    status=status.HTTP_401_UNAUTHORIZED,
+                    data={'error': 'User account is not activated yet!'}
+                )
+
             token, _ = Token.objects.get_or_create(user=user)
             return Response(data={'key': token.key})
-        return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response(
+            status=status.HTTP_401_UNAUTHORIZED,
+            data={'error': 'User credentials are wrong!'}
+        )
+
+
+
+
+class RegistrationAPIView(CreateAPIView):
+    serializer_class = RegisterValidateSerializer
+    
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+
+        with transaction.atomic():
+            user = CustomUser.objects.create_user(
+                email=email,
+                password=password,
+                is_active=False
+            )
+
+            code = ''.join(random.choices(string.digits, k=6))
+
+            confirm_code = ConfirmCode.objects.create(
+                user=user,
+                code=code
+            )
+
+        return Response(
+            status=status.HTTP_201_CREATED,
+            data={
+                'user_id': user.id,
+                'confirm_code': code
+            }
+        )
+
+class ConfirmUserAPIView(CreateAPIView):
+    serializer_class = ConfirmSerializer
+
+    def post(self, request):
+        serializer = ConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_id = serializer.validated_data['user_id']
+
+        with transaction.atomic():
+            user = CustomUser.objects.get(id=user_id)
+            user.is_active = True
+            user.save()
+
+            token, _ = Token.objects.get_or_create(user=user)
+
+            ConfirmCode.objects.filter(user=user).delete()
+
+        return Response(
+            status=status.HTTP_200_OK,
+            data={
+                'message': 'User аккаунт успешно активирован',
+                'key': token.key
+            }
+        )
         
 
-# @api_view(['POST'])
-# def authorization_api_view(request):
-#     serializer = UserAuthSerializer(data=request.data)
-#     serializer.is_valid(raise_exception=True)
 
-#     user = authenticate(**serializer.validated_data)
-
-#     if user is not None:
-#         token, _ = Token.objects.get_or_create(user=user)
-#         return Response(data={'key': token.key})
-#     return Response(status=status.HTTP_401_UNAUTHORIZED)
-    
 
