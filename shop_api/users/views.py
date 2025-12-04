@@ -9,6 +9,9 @@ import random
 import string
 from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView
+from users.serializers import CustomTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+
 
 class AuthorizationAPIView(CreateAPIView):
     serializer_class = AuthValidateSerializer
@@ -35,8 +38,6 @@ class AuthorizationAPIView(CreateAPIView):
         )
 
 
-
-
 class RegistrationAPIView(CreateAPIView):
     serializer_class = RegisterValidateSerializer
     
@@ -46,11 +47,13 @@ class RegistrationAPIView(CreateAPIView):
 
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
+        birthday = serializer.validated_data['birthday']
 
         with transaction.atomic():
             user = CustomUser.objects.create_user(
                 email=email,
                 password=password,
+                birthday=birthday,
                 is_active=False
             )
 
@@ -68,6 +71,7 @@ class RegistrationAPIView(CreateAPIView):
                 'confirm_code': code
             }
         )
+    
 
 class ConfirmUserAPIView(CreateAPIView):
     serializer_class = ConfirmSerializer
@@ -94,7 +98,8 @@ class ConfirmUserAPIView(CreateAPIView):
                 'key': token.key
             }
         )
-        
-
-
+    
+    
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 

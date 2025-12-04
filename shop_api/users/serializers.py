@@ -1,10 +1,13 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from users.models import ConfirmCode, CustomUser
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 
 class UserBaseSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
+    birthday = serializers.DateField()
 
 class AuthValidateSerializer(UserBaseSerializer):
     pass
@@ -40,3 +43,10 @@ class ConfirmSerializer(serializers.Serializer):
             raise ValidationError('Неверный код подтверждения!')
 
         return attrs
+    
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['birthday'] = user.birthday.isoformat() if user.birthday else None
+        return token

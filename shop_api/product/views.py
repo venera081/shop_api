@@ -10,6 +10,7 @@ from .serializers import (
 )
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
 from common.permissions import IsModerator
+from common.validators import validate_age
 
 class CategoryRetrieveUpddateDestroyAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
@@ -17,15 +18,10 @@ class CategoryRetrieveUpddateDestroyAPIView(RetrieveUpdateDestroyAPIView):
     lookup_field = 'id'
 
 
-
-
-
 class CategoryListCreateAPIView(ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategoryListSerializer
     permission_classes = [IsModerator]
-
-
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -33,12 +29,11 @@ class CategoryListCreateAPIView(ListCreateAPIView):
         return CategoryListSerializer
     
     def perform_create(self, serializer):
+        user = self.request.user
+        validate_age(user)
         validated = serializer.validated_data
         return Category.objects.create(name=validated['name'])
     
-
-
-
 
 class ProductRetrieveUpddateDestroyAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
@@ -46,9 +41,6 @@ class ProductRetrieveUpddateDestroyAPIView(RetrieveUpdateDestroyAPIView):
     lookup_field = 'id'
     
     
-
-
-
 class ProductListCreateAPIView(ListCreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductsListSerializer
@@ -60,13 +52,13 @@ class ProductListCreateAPIView(ListCreateAPIView):
         return ProductsListSerializer
     
     def perform_create(self, serializer):
+        user = self.request.user
+        validate_age(user)
         validated = serializer.validated_data
         return Product.objects.create(title=validated['title'],
                                       description=validated['description'],
                                       price=validated['price'],
                                       category_id=validated['category_id'])
-
-
 
 
 
@@ -77,13 +69,10 @@ class ReviewRetrieveUpddateDestroyAPIView(RetrieveUpdateDestroyAPIView):
 
 
 
-
 class ReviewListCreateAPIView(ListCreateAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewsListSerializer
     
-
-
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return ReviewsListSerializer
@@ -94,7 +83,6 @@ class ReviewListCreateAPIView(ListCreateAPIView):
         return Review.objects.create(text=validated['text'],
                                      stars=validated['stars'],
                                      product_id=validated['product_id'])
-
 
 
 class ProductWithReviewsAPIView(ListAPIView):
