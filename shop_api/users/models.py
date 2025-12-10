@@ -8,7 +8,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     birthday = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
-    
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    last_login = models.DateTimeField(null=True, blank=True)  # если нет
+    registration_source = models.CharField(max_length=50, default="local")
+
     objects = CustomUserManager()
 
     USERNAME_FIELD = "email"

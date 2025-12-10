@@ -50,3 +50,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token['birthday'] = user.birthday.isoformat() if user.birthday else None
         return token
+    
+class OuathCodeSerializer(serializers.Serializer):
+    code = serializers.CharField()
