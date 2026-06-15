@@ -10,3 +10,12 @@ urlpatterns = [
     path('reviews/<int:id>/', views.ReviewRetrieveUpddateDestroyAPIView.as_view()),
     path('products/reviews/', views.ProductWithReviewsAPIView.as_view())
 ]
+
+# from rest_framework.routers import DefaultRouter
+# from .views import ProductViewSet
+
+
+# router = DefaultRouter()
+# router.register("products", ProductViewSet, basename='product')
+
+# urlpatterns = router.urls

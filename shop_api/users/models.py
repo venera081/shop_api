@@ -12,6 +12,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=150, blank=True)
     last_login = models.DateTimeField(null=True, blank=True)  # если нет
     registration_source = models.CharField(max_length=50, default="local")
+    date_joined = models.DateTimeField(auto_now_add=True)
 
     objects = CustomUserManager()
 
