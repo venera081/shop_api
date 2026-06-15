@@ -111,11 +111,3 @@ class ReviewListCreateAPIView(ListCreateAPIView):
 class ProductWithReviewsAPIView(ListAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductWithReviewsSerializer
-
-
-
-# from rest_framework.viewsets import ModelViewSet
-
-# class ProductModelView(ModelViewSet):
-#     queryset = Product.objects.all()
-#     serializer_class = ProductDetailSerializer

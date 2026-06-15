@@ -22,6 +22,3 @@ def verify_confirmation_code(email, code):
         cache.delete(key)
         return True
     return False
-
-
-
