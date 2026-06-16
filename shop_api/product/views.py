@@ -10,7 +10,7 @@ from .serializers import (
     CategoryListSerializer, ProductsListSerializer, ReviewsListSerializer,
     ProductValidateSerializer, CategoryDelailSerializer,
     ProductDetailSerializer, ReviewDetailSerializer, ProductWithReviewsSerializer,
-    CategoryValidateSerializer
+    CategoryValidateSerializer, ReviewValidateSerializer
 )
 from .tasks import generate_product_code, notify_new_category
 
@@ -47,8 +47,8 @@ class CategoryListCreateAPIView(ListCreateAPIView):
         cached_data = cache.get("category_list")
         if cached_data:
             return Response(data=cached_data, status=status.HTTP_200_OK)
-        response = super().get(self, request, *args, **kwargs)
-        if response.data.get("count", 0) > 0:
+        response = super().get(request, *args, **kwargs)
+        if response.data:
             cache.set("category_list", response.data, timeout=300)
         return response
 
@@ -97,6 +97,8 @@ class ReviewListCreateAPIView(ListCreateAPIView):
     pagination_class = PageNumberPagination
 
     def get_serializer_class(self):
+        if self.request.method == "POST":
+            return ReviewValidateSerializer
         return ReviewsListSerializer
     
     def perform_create(self, serializer):
